@@ -11,23 +11,33 @@ import (
 )
 
 type Game struct {
-	id        uuid.UUID
-	dayNumber uint
-	dayPhase  bool // true when the current phase is day
-	mu        sync.RWMutex
-	players   []*Player
-	kickVotes map[uint]map[string]string
-	killVotes map[uint]map[string]string
-	winners   *Team
-	dayChange chan struct{}
+	id            uuid.UUID
+	dayNumber     uint
+	dayPhase      bool // true when the current phase is day
+	mu            sync.RWMutex
+	players       []*Player
+	kickVotes     map[uint]map[string]string
+	killVotes     map[uint]map[string]string
+	winners       *Team
+	mafiaMap      map[*Player]struct{}
+	commissarMap  map[*Player]struct{}
+	kickMap       map[*Player]struct{}
+	mafiaChan     chan struct{}
+	commissarChan chan struct{}
+	kickChan      chan struct{}
 }
 
 func NewGame() *Game {
 	return &Game{
-		id:        uuid.New(),
-		kickVotes: make(map[uint]map[string]string, 1),
-		killVotes: make(map[uint]map[string]string, 1),
-		dayChange: make(chan struct{}, 4),
+		id:            uuid.New(),
+		kickVotes:     make(map[uint]map[string]string, 1),
+		killVotes:     make(map[uint]map[string]string, 1),
+		kickChan:      make(chan struct{}),
+		mafiaChan:     make(chan struct{}),
+		commissarChan: make(chan struct{}),
+		kickMap:       make(map[*Player]struct{}),
+		mafiaMap:      make(map[*Player]struct{}),
+		commissarMap:  make(map[*Player]struct{}),
 	}
 }
 
@@ -60,8 +70,38 @@ func (g *Game) Winners() *Team {
 	return g.winners
 }
 
-func (g *Game) DayChange() chan struct{} {
-	return g.dayChange
+func (g *Game) KickChan() chan struct{} {
+	return g.commissarChan
+}
+
+func (g *Game) KickMap() map[*Player]struct{} {
+	return g.commissarMap
+}
+func (g *Game) KickMapReopen() {
+	g.commissarMap = make(map[*Player]struct{})
+}
+
+func (g *Game) CommissarChan() chan struct{} {
+	return g.commissarChan
+}
+
+func (g *Game) CommissarMap() map[*Player]struct{} {
+	return g.commissarMap
+}
+func (g *Game) CommissarMapReopen() {
+	g.commissarMap = make(map[*Player]struct{})
+}
+
+func (g *Game) MafiaChan() chan struct{} {
+	return g.mafiaChan
+}
+
+func (g *Game) MafiaMap() map[*Player]struct{} {
+	return g.mafiaMap
+}
+
+func (g *Game) MafiaMapReopen() {
+	g.mafiaMap = make(map[*Player]struct{})
 }
 
 // AddPlayer adds a new player to the game if its name is unique, otherwise returns an error.
@@ -111,7 +151,7 @@ func (g *Game) findMostVoted(votes map[string]string) *Player {
 	}
 	victim, topCount, isAbsolute := "", uint(0), false
 	for candidate, c := range cnt {
-		log.Printf("%s has %d votes\n", candidate, c)
+		log.Printf("%s %s has %d votes\n", g, candidate, c)
 		if c == topCount {
 			isAbsolute = false
 		}
@@ -137,9 +177,16 @@ func (g *Game) NewDay() (*Player, uint) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	victim := g.findMostVoted(g.killVotes[g.dayNumber])
-	if victim != nil {
-		victim.Kill()
+	if g.dayNumber == 0 {
+		g.dayNumber++
+		g.dayPhase = true
+		return nil, g.dayNumber
 	}
+	if victim == nil {
+		log.Printf("%s more than one player has received the most votes, a revote is required\n", g)
+		return nil, 0
+	}
+	victim.Kill()
 	g.dayNumber++
 	g.dayPhase = true
 	return victim, g.dayNumber
@@ -150,9 +197,11 @@ func (g *Game) NewNight() *Player {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	kicked := g.findMostVoted(g.kickVotes[g.dayNumber])
-	if kicked != nil {
-		kicked.Kill()
+	if kicked == nil {
+		log.Printf("%s more than one player has received the most votes, a revote is required\n", g)
+		return nil
 	}
+	kicked.Kill()
 	g.dayPhase = false
 	return kicked
 }
@@ -171,7 +220,7 @@ func (g *Game) CheckStatus() {
 			continue
 		}
 		switch p.Role() {
-		case RoleInnocent, RoleSheriff:
+		case RoleInnocent, RoleCommissar:
 			others++
 		case RoleMafia:
 			mafia++

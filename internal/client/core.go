@@ -38,37 +38,44 @@ func (e *Core) handleEvents() {
 		}
 
 		switch event.GetType() {
+		// player join notification
 		case proto.GameEvent_EVENT_PLAYER_JOINED:
-			e.sendActionDescriptionWithComment(fmt.Sprintf("%s joined the game", event.GetPayloadPlayerJoined().GetPlayer().GetUsername()))
+			e.printEventDescriptionComm(fmt.Sprintf("%s joined the game", event.GetPayloadPlayerJoined().GetPlayer().GetUsername()))
+
+		// player leave notification
 		case proto.GameEvent_EVENT_PLAYER_LEFT:
-			e.sendActionDescriptionWithComment(fmt.Sprintf("%s left the game", event.GetPayloadPlayerLeft().GetPlayer().GetUsername()))
+			e.printEventDescriptionComm(fmt.Sprintf("%s left the game", event.GetPayloadPlayerLeft().GetPlayer().GetUsername()))
 
+		// send a message to all game players
 		case proto.GameEvent_EVENT_MESSAGE:
-			e.sendWithComment(fmt.Sprintf("[%s]: %s", event.GetPayloadMessage().GetSender().GetUsername(), event.GetPayloadMessage().GetContent()))
+			e.printComm(fmt.Sprintf("[%s]: %s", event.GetPayloadMessage().GetSender().GetUsername(), event.GetPayloadMessage().GetContent()))
 
+		// notify who was killed at night, and what day started
 		case proto.GameEvent_EVENT_DAY_STARTED:
-			var text string
 			if event.GetPayloadDayStarted().GetKilledPlayer() != nil {
-				text = fmt.Sprintf("%s was murdered that night", event.GetPayloadDayStarted().GetKilledPlayer().GetUsername())
-				e.sendActionDescription(text)
+				text := fmt.Sprintf("%s was killed that night", event.GetPayloadDayStarted().GetKilledPlayer().GetUsername())
+				e.printEventDescription(text)
 			}
-			text = fmt.Sprintf("Day No. %d started", event.GetPayloadDayStarted().GetDayId())
-			e.sendActionDescriptionWithComment(text)
+			text := fmt.Sprintf("Day No.%d started", event.GetPayloadDayStarted().GetDayId())
+			e.printEventDescriptionComm(text)
 
+		// notify who was killed at night, and what day started
 		case proto.GameEvent_EVENT_NIGHT_STARTED:
-			var text string
-			if event.GetPayloadNightStarted().GetKickedPlayer() != nil {
-				text = fmt.Sprintf("The majority voted to kick %s today", event.GetPayloadNightStarted().GetKickedPlayer().GetUsername())
-				e.sendActionDescription(text)
-			}
-			text = fmt.Sprintf("Night No. %d started", event.GetPayloadNightStarted().GetDayId())
-			e.sendActionDescriptionWithComment(text)
+			text := fmt.Sprintf("The majority voted to kick %s today", event.GetPayloadNightStarted().GetKickedPlayer().GetUsername())
+			e.printEventDescription(text)
+			text = fmt.Sprintf("Night No.%d started. The Commissar and the Mafia need to make a decision", event.GetPayloadNightStarted().GetDayId())
+			e.printEventDescriptionComm(text)
 
+		// notify that the victim has not been identified, and the players need to repeat the vote
+		case proto.GameEvent_EVENT_REPEAT_VOTE:
+			e.printEventDescriptionComm("The victim has not been identified, please vote again")
+
+		// notify that game finished
 		case proto.GameEvent_EVENT_GAME_FINISHED:
-			e.sendActionDescriptionWithComment(fmt.Sprintf("Game finished! Winners: %s", event.GetPayloadGameFinished().GetWinners().String()))
+			e.printEventDescriptionComm(fmt.Sprintf("Game finished! Winners: %s", event.GetPayloadGameFinished().GetWinners().String()))
 
 		default:
-			e.sendWithComment(fmt.Sprintf("Received an event with type %s", event.GetType()))
+			e.printComm(fmt.Sprintf("Received an event with type %s", event.GetType()))
 		}
 	}
 }
@@ -97,6 +104,10 @@ func (e *Core) handleUserInput() {
 
 		case strings.HasPrefix(input, "kill"):
 			e.handleKillCommand(input)
+
+		case strings.HasPrefix(input, "check"):
+			e.handleCheckCommand(input)
+
 		default:
 			e.sendError("Invalid command, please see help.")
 		}
@@ -111,13 +122,14 @@ Command list:
 > status - print the current game status.
 > msg [text] - send a text message.
 > kick [username] - vote for kick someone (available during the day).
-> kill [username] - vote for kill someone (available for mafiosi during the night).
+> kill [username] - vote for kill someone (available for mafiosi at night).
+> check [username] - check if the player is a mafia (available for commissar at night).
 
 ===================================================================================================
 `
 	switch {
 	case withComment:
-		e.sendWithComment(text)
+		e.printComm(text)
 	default:
 		e.messenger.OutputChan() <- "\n" + text
 	}
@@ -126,13 +138,13 @@ Command list:
 func (e *Core) roleToString(r proto.Role) string {
 	switch r {
 	case proto.Role_ROLE_INNOCENT:
-		return "[INNOCENT]"
-	case proto.Role_ROLE_SHERIFF:
-		return "[SHERIFF] "
+		return "[INNOCENT] "
+	case proto.Role_ROLE_COMMISSAR:
+		return "[COMMISSAR]"
 	case proto.Role_ROLE_MAFIOSI:
-		return "[MAFIOSI] "
+		return "[MAFIOSI]  "
 	default:
-		return "[]        "
+		return "[]         "
 	}
 }
 
@@ -155,7 +167,7 @@ func (e *Core) printStatus() {
 		text += "\n\nWinners: " + state.GetWinners().String()
 	}
 	text += "\n\n========================"
-	e.sendWithComment(text)
+	e.printComm(text)
 }
 
 func (e *Core) printMsg(input string) {
@@ -169,7 +181,7 @@ func (e *Core) printMsg(input string) {
 		e.sendError(fmt.Sprintf("Failed to send message: %v", err))
 		return
 	}
-	e.sendActionDescriptionWithComment(fmt.Sprintf("The message has been sent to %d players", receivers))
+	e.printEventDescriptionComm(fmt.Sprintf("The message has been sent to %d players", receivers))
 }
 
 func (e *Core) handleKickCommand(input string) {
@@ -179,7 +191,7 @@ func (e *Core) handleKickCommand(input string) {
 		e.sendError(err.Error())
 		return
 	}
-	e.sendActionDescriptionWithComment(fmt.Sprintf("You cast your vote for %s", username))
+	e.printEventDescriptionComm(fmt.Sprintf("You cast your vote for %s", username))
 }
 
 func (e *Core) handleKillCommand(input string) {
@@ -189,22 +201,39 @@ func (e *Core) handleKillCommand(input string) {
 		e.sendError(err.Error())
 		return
 	}
-	e.sendActionDescriptionWithComment(fmt.Sprintf("You cast your vote for %s", username))
+	e.printEventDescriptionComm(fmt.Sprintf("You cast your vote for %s", username))
+}
+
+func (e *Core) handleCheckCommand(input string) {
+	username := input[len("check "):]
+	resp, err := e.client.CheckUser(username)
+	if err != nil {
+		e.sendError(err.Error())
+		return
+	}
+	var text string
+	switch {
+	case resp.IsMafia:
+		text = fmt.Sprintf("You checked that the user %s is a mafia", username)
+	default:
+		text = fmt.Sprintf("You checked that the user %s is not a mafia", username)
+	}
+	e.printEventDescriptionComm(text)
 }
 
 func (e *Core) sendError(text string) {
 	text = strings.ReplaceAll(text, "rpc error: code = Unknown desc =", "")
-	e.sendWithComment("[ERROR] " + text)
+	e.printComm("[ERROR] " + text)
 }
 
-func (e *Core) sendWithComment(text string) {
+func (e *Core) printComm(text string) {
 	e.messenger.OutputChan() <- "\n" + text + "\n\n" + "Enter command: "
 }
 
-func (e *Core) sendActionDescriptionWithComment(text string) {
+func (e *Core) printEventDescriptionComm(text string) {
 	e.messenger.OutputChan() <- "\n\t\t\t\t\t*** " + text + " ***\n\n" + "Enter command: "
 }
 
-func (e *Core) sendActionDescription(text string) {
+func (e *Core) printEventDescription(text string) {
 	e.messenger.OutputChan() <- "\n\t\t\t\t\t*** " + text + " ***\n\n"
 }

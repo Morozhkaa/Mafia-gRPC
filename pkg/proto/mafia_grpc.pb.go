@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.21.12
-// source: pkg/proto/mafia.proto
+// source: mafia.proto
 
 package proto
 
@@ -24,6 +24,7 @@ const (
 	Mafia_SendMessage_FullMethodName   = "/mafia.Mafia/SendMessage"
 	Mafia_Kick_FullMethodName          = "/mafia.Mafia/Kick"
 	Mafia_Kill_FullMethodName          = "/mafia.Mafia/Kill"
+	Mafia_CheckUser_FullMethodName     = "/mafia.Mafia/CheckUser"
 	Mafia_CheckTeam_FullMethodName     = "/mafia.Mafia/CheckTeam"
 )
 
@@ -36,6 +37,7 @@ type MafiaClient interface {
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	Kick(ctx context.Context, in *KickRequest, opts ...grpc.CallOption) (*KickResponse, error)
 	Kill(ctx context.Context, in *KillRequest, opts ...grpc.CallOption) (*KillResponse, error)
+	CheckUser(ctx context.Context, in *CheckUserRequest, opts ...grpc.CallOption) (*CheckUserResponse, error)
 	CheckTeam(ctx context.Context, in *CheckTeamRequest, opts ...grpc.CallOption) (*CheckTeamResponse, error)
 }
 
@@ -115,6 +117,15 @@ func (c *mafiaClient) Kill(ctx context.Context, in *KillRequest, opts ...grpc.Ca
 	return out, nil
 }
 
+func (c *mafiaClient) CheckUser(ctx context.Context, in *CheckUserRequest, opts ...grpc.CallOption) (*CheckUserResponse, error) {
+	out := new(CheckUserResponse)
+	err := c.cc.Invoke(ctx, Mafia_CheckUser_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *mafiaClient) CheckTeam(ctx context.Context, in *CheckTeamRequest, opts ...grpc.CallOption) (*CheckTeamResponse, error) {
 	out := new(CheckTeamResponse)
 	err := c.cc.Invoke(ctx, Mafia_CheckTeam_FullMethodName, in, out, opts...)
@@ -133,6 +144,7 @@ type MafiaServer interface {
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	Kick(context.Context, *KickRequest) (*KickResponse, error)
 	Kill(context.Context, *KillRequest) (*KillResponse, error)
+	CheckUser(context.Context, *CheckUserRequest) (*CheckUserResponse, error)
 	CheckTeam(context.Context, *CheckTeamRequest) (*CheckTeamResponse, error)
 	mustEmbedUnimplementedMafiaServer()
 }
@@ -155,6 +167,9 @@ func (UnimplementedMafiaServer) Kick(context.Context, *KickRequest) (*KickRespon
 }
 func (UnimplementedMafiaServer) Kill(context.Context, *KillRequest) (*KillResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Kill not implemented")
+}
+func (UnimplementedMafiaServer) CheckUser(context.Context, *CheckUserRequest) (*CheckUserResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckUser not implemented")
 }
 func (UnimplementedMafiaServer) CheckTeam(context.Context, *CheckTeamRequest) (*CheckTeamResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckTeam not implemented")
@@ -265,6 +280,24 @@ func _Mafia_Kill_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Mafia_CheckUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MafiaServer).CheckUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Mafia_CheckUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MafiaServer).CheckUser(ctx, req.(*CheckUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Mafia_CheckTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CheckTeamRequest)
 	if err := dec(in); err != nil {
@@ -307,6 +340,10 @@ var Mafia_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Mafia_Kill_Handler,
 		},
 		{
+			MethodName: "CheckUser",
+			Handler:    _Mafia_CheckUser_Handler,
+		},
+		{
 			MethodName: "CheckTeam",
 			Handler:    _Mafia_CheckTeam_Handler,
 		},
@@ -318,5 +355,5 @@ var Mafia_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "pkg/proto/mafia.proto",
+	Metadata: "mafia.proto",
 }

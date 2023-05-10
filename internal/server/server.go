@@ -120,6 +120,21 @@ func (s *Server) Kill(ctx context.Context, in *proto.KillRequest) (*proto.KillRe
 	return &proto.KillResponse{}, nil
 }
 
+func (s *Server) CheckUser(ctx context.Context, in *proto.CheckUserRequest) (*proto.CheckUserResponse, error) {
+	p, err := s.fetchPlayer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if in.GetUsername() == "" {
+		return nil, errors.New("missed username")
+	}
+	isMafia, err := s.core.CheckUser(p, in.GetUsername())
+	if err != nil {
+		return nil, err
+	}
+	return &proto.CheckUserResponse{IsMafia: isMafia}, nil
+}
+
 func (s *Server) GetGameStatus(ctx context.Context, in *proto.GetGameStatusRequest) (*proto.GetGameStatusResponse, error) {
 	p, err := s.fetchPlayer(ctx)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 
 type Config struct {
 	HTTP_port string `env:"HTTP_PORT" envDefault:"9000"`
-	IsProd    bool   `env:"IS_PROD" envDefault:"false"`
 }
 
 var config Config = Config{}

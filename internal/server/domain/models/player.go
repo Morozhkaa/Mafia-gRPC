@@ -8,9 +8,9 @@ import (
 type Role string
 
 const (
-	RoleMafia    Role = "MAFIA"
-	RoleSheriff  Role = "SHERIFF"
-	RoleInnocent Role = "INNOCENT"
+	RoleMafia     Role = "MAFIA"
+	RoleCommissar Role = "COMMISSAR"
+	RoleInnocent  Role = "INNOCENT"
 )
 
 // ConvertToProtoRole returns the corresponding proto.Role instance.
@@ -18,8 +18,8 @@ func (r Role) ConvertToProtoRole() proto.Role {
 	switch r {
 	case RoleMafia:
 		return proto.Role_ROLE_MAFIOSI
-	case RoleSheriff:
-		return proto.Role_ROLE_SHERIFF
+	case RoleCommissar:
+		return proto.Role_ROLE_COMMISSAR
 	case RoleInnocent:
 		return proto.Role_ROLE_INNOCENT
 	default:

@@ -5,7 +5,6 @@ import (
 	"grpc/pkg/proto"
 	"log"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -21,15 +20,15 @@ func NewClient(ctx context.Context, username string, conn *grpc.ClientConn) (*Cl
 	cli := proto.NewMafiaClient(conn)
 	stream, err := cli.JoinGame(ctx, &proto.JoinGameRequest{Username: username})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to join a game")
+		return nil, err
 	}
 	md, err := stream.Header()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get gRPC headers")
+		return nil, err
 	}
 	sessionID, err := proto.FetchSessionID(md)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get session ID")
+		return nil, err
 	}
 	ctx = metadata.NewOutgoingContext(ctx, proto.WithSessionID(sessionID))
 	return &Client{
@@ -75,4 +74,8 @@ func (c *Client) VoteKick(username string) error {
 func (c *Client) VoteKill(username string) error {
 	_, err := c.cli.Kill(c.ctx, &proto.KillRequest{Username: username})
 	return err
+}
+
+func (c *Client) CheckUser(username string) (*proto.CheckUserResponse, error) {
+	return c.cli.CheckUser(c.ctx, &proto.CheckUserRequest{Username: username})
 }

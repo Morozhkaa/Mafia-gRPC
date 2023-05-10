@@ -9,13 +9,14 @@ service Mafia {
   rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);
   rpc Kick (KickRequest) returns (KickResponse);
   rpc Kill (KillRequest) returns (KillResponse);
+  rpc CheckUser (CheckUserRequest) returns (CheckUserResponse);
   rpc CheckTeam (CheckTeamRequest) returns (CheckTeamResponse);
 }
 
 enum Role {
   ROLE_UNKNOWN = 0;
   ROLE_INNOCENT = 1;
-  ROLE_SHERIFF = 2;
+  ROLE_COMMISSAR = 2;
   ROLE_MAFIOSI = 3;
 }
 enum Team {
@@ -57,6 +58,7 @@ message GameEvent {
     EVENT_GAME_FINISHED = 5;
     EVENT_DAY_STARTED = 6;
     EVENT_NIGHT_STARTED = 7;
+    EVENT_REPEAT_VOTE = 8;
   }
   
   message PayloadPlayerJoined {
@@ -93,6 +95,11 @@ message GameEvent {
     repeated VotePaper votes = 3;
   }
 
+  message PayloadRepeatVote {
+    uint64 day_id = 1;
+    repeated VotePaper votes = 3;
+  }
+
   oneof payload {
     PayloadPlayerJoined payload_player_joined = 5;
     PayloadPlayerLeft payload_player_left = 6;
@@ -101,6 +108,7 @@ message GameEvent {
     PayloadGameFinished payload_game_finished = 9;
     PayloadDayStarted payload_day_started = 10;
     PayloadNightStarted payload_night_started = 11;
+    PayloadRepeatVote payload_repeat_vote = 12;
   }
 }
 
@@ -136,6 +144,13 @@ message KillRequest {
 }
 message KillResponse {}
 
+// CheckUser Method
+message CheckUserRequest {
+  string username = 1;
+}
+message CheckUserResponse {
+  bool isMafia = 1;
+}
 
 // CheckTeam Method
 message CheckTeamRequest {
