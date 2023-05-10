@@ -1,0 +1,31 @@
+version: "v2.12.2"
+
+networks:
+  myapp:
+    external: true
+
+services:
+  mafia-server:
+    image: mafia-server
+    container_name: mafia-server
+    build:
+      context: .
+      dockerfile: Dockerfile-server
+    ports:
+      - 9000:9000
+    environment:
+      - HTTP_PORT=9000
+    networks:
+      - myapp
+  mafia-client:
+    image: mafia-client
+    container_name: mafia-client1
+    build:
+      context: .
+      dockerfile: Dockerfile-client
+    ports:
+      - 9001:9000
+    environment:
+      - HTTP_PORT=9000
+    networks:
+      - myapp
