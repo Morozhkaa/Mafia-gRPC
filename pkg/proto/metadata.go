@@ -19,7 +19,7 @@ func WithSessionID(id uuid.UUID) metadata.MD {
 func FetchSessionID(md metadata.MD) (uuid.UUID, error) {
 	id := md.Get(metadataKeySessionID)
 	if len(id) != 1 {
-		return uuid.UUID{}, fmt.Errorf("metadata has invalid number of session id keys: expected 1, found %d", len(id))
+		return uuid.UUID{}, fmt.Errorf("this username may have already been taken, please try again (metadata has invalid number of session id keys: expected 1, found %d)", len(id))
 	}
 	parsed, err := uuid.Parse(id[0])
 	if err != nil {

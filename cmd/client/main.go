@@ -39,14 +39,10 @@ func main() {
 	fmt.Printf("Enter your username: ")
 	var username string
 	fmt.Scanf("%s", &username)
-	for {
-		// create client and start work
-		cli, err = client.NewClient(ctx, username, conn)
-		if err == nil {
-			break
-		}
-		fmt.Print("This username may have already been taken, please try again: ")
-		fmt.Scanf("%s", &username)
+	// create client and start work
+	cli, err = client.NewClient(ctx, username, conn)
+	if err != nil {
+		log.Fatalf("failed to init gRPC client: %v\n", err)
 	}
 
 	messenger := client.NewMessenger(ctx)
